@@ -149,14 +149,73 @@ long as we do not lose too many details, especially in the template image.
 \fig[scale=1]{src/img/template-matching.jpg}{img:sliding-template}{Sliding
 Template}
 
+In order for the template matching approach to work, there is a need for a
+good matching function. In a real implementation, like the one in the OpenCV
+library, a third image, sometimes called a \textit{result image}, is obtained
+after the sliding step and on that image we look for the \textit{best} match.
+When we slide the template on the image, and by sliding we understand moving
+the box one pixel at a time from left to right and up to down, we compute a
+value for the same pixel in the result image based on a metric. So, for each
+pair of pixels \((x, y)\) where we we overlapped the template image \(T\) over
+the query image \(I\) we set the corresponding \((x, y)\) pixels in the result
+image \(R\) according to the match metric.
+
+The OpenCV library exposes several metrics to be used together with the
+\texttt{matchTemplate} function of which four of the most interesting ones are:
+\begin{itemize}
+  \item \texttt{CV_TM_SQDIFF}
+    \[R(x, y) = \sum_{(x', y') \in T} (T(x', y') - I(x + x', y + y'))^2 \]
+  \item \texttt{CV_TM_SQDIFF_NORMED}
+    \[R(x, y) = \cfrac{\sum_{(x', y') \in T} (T(x', y') - I(x + x', y + y'))^2}
+                     {\sqrt{\sum_{(x', y') \in T} T(x', y')^2 \cdot
+                            \sum_{(x', y') \in T} I(x + x', y + y')^2}} \]
+  \item \texttt{CV_TM_CCORR}
+    \[R(x, y) = \sum_{(x', y') \in T} (T(x', y') \cdot I(x + x', y + y'))^2 \]
+  \item \texttt{CV_TM_CCORR_NORMED}
+    \[R(x, y) = \cfrac{\sum_{(x', y') \in T} (T(x', y') \cdot I(x + x', y + y'))^2}
+                      {\sqrt{\sum_{(x', y') \in T} T(x', y')^2 \cdot
+                             \sum_{(x', y') \in T} I(x + x', y + y')^2}} \]
+\end{itemize}
+
+As the four formulas above show, we have, in fact, only two types of metrics,
+the other two being only the normalized forms of the formers. The first two,
+\texttt{CV_TM_SQDIFF_NORMED} and \texttt{CV_TM_SQDIFF} rely on the squared
+difference between the value in the template image and the original image. If
+we think of what a good match would mean in this case, namely when the two
+pixels are as close as possible, than it means that the smaller the value is,
+the better the match we have. So, in the case of the first two methods, all we
+have to do is look for the smallest value in the result image in order to
+find the best match.
+
+\fig[scale=1]{src/img/template-result.jpg}{img:result-template}{Result matrix
+\texttt{R} obtained with a metric of \texttt{CV_TM_CCORR_NORMED}.}
+
+In \labelindexref{Figure}{img:result-template} we illustrate the result matrix
+obtained after the sliding procedure shown in
+\labelindexref{Figure}{img:sliding-template} using the
+\texttt{CV_TM_CCORR_NORMED} metric. Contrary to the squared difference
+metrics, the cross correlation methods yield the best result when the result
+values is at its maximum, in our case the small white spot inside the red
+circle. Once we have determined the location of the best match, all that
+remains to be done is determine the contour of the template in the original
+image. This can be easily achieved knowing the size of the template and the
+fact that the white spot represents the upper left corner.
+
+It is true that we presented here only the happy case when the template size
+matches exactly the size of the object looked for in the query image which is
+not very often true in a real environment where we know the size of the
+template, but we know nothing about the bigger image. However, there is some
+work done in this domain \cite{fast-ccorr} \cite{phase-angle} such that the
+template matching approach can be used in real applications, like the one
+presented in this thesis: recognizing logos.
+
 Given its nature, the template matching technique is mainly used in situations
 where the object characteristics are rather constant or where speed is more
 important than very high accuracy. If we remember the numbers stated in
 \labelindexref{Section}{sec:proj-motivation} from \labelindexref{Chapter}{chapter:intro},
 it is not a surprise that this type of algorithm was the main choice in the implementation.
 
-\todo{Present this type of technique. Implementations. Usages.
-Advantages/Disadvantages. Performance blah blah}
+\todo{Decide whether we should talk about the Pyramid stuff or not}
 
 \subsection{Learning Approach}
 \todo{Present this type of technique. Implementations. Usages.

@@ -1,24 +1,85 @@
 \chapter{Proposed Solution}
 \label{chapter:proposed-sol}
 
-\todo{Overview of this chapter. Focus on the fact that the system is algorithm
-agnostic. It can basically do any type of image computation.}
+In this chapter we will se a detailed description of the system we have built
+in the scope of this thesis. In \labelindexref{Section}{sec:reqs-tech} we
+present what were the requirements and constraints of this project together
+with what technologies we used and why we chose them. In the next part of this
+chapter, \labelindexref{Section}{sec:sys-arch}, we take each component in the
+pipeline and present how it works. Finally, the third part,
+\labelindexref{Section}{sec:logo-alg}, consists in the detailed description of
+the template matching algorithm variation that we used for the logo
+recognition component.
+
+We will shortly see in the next section that one of the biggest requirements
+(and achievements for that matter) of this thesis was to build a system that
+is algorithm agnostic and can do any type of computation on images fetched
+from social media streams. In order for this to happen, it was necessary to
+divide the work into multiple separate components each one being responsible
+for a very specific task, i.e. fetching images, storing images, recognizing
+logos etc. But before diving into each component, let us see what were the
+requirements and technologies used in building this system.
 
 \section{Requirements and Technologies Used}
+\label{sec:reqs-tech}
+
+Even though the project is open source and we had almost full freedom in
+designing the system and choosing the technologies, we still had to conform
+with some requirements came from the proposing company, Hootsuite. One of the
+rigid requirements was that the project has to be written in Scala, not
+necessarily because they considered Scala is the best choice here, but because
+most, if not all, of their platform is built upon Scala. More details about
+Scala, what are its advantages, disadvantages or why it is fun to use, can be
+found in \labelindexref{Section}{sub-sec:scala}.
+
+Another requirement that did not come from Hootsuite, but rather from the
+common sense is that the system has to scale very easily. Like we saw in
+\labelindexref{Section}{sec:proj-motivation}, the number of images that this
+system has to face is quite big, even with the computation power we have
+available nowadays. The most intuitive way to imagine a scalable system is if
+we add an arbitrary number of machines, let's say \(M_{new}\), than the task has to
+completed \(1 + \frac{M_{new}}{M_{old}}\) times faster, where \(M_{old}\) is the old number
+of machines available. In practice, mostly due to Amdahl's
+Law\footnote{\url{http://home.wlu.edu/~whaleyt/classes/parallel/topics/amdahl.html}},
+but also because of other factors, like network latency, hardware or software
+fails etc, the system will never reach that idealized speedup, but if the
+speed gain is linear with \(1 + \frac{M_{new}}{M_{old}}\), we can declare that the
+system is scalable. Fortunately for us, the task we have to perform is very
+easy to distribute across multiple machines. Suppose that we have \(M\)
+machines and each of them is running an instance of the logo recognition
+algorithm, then if we have \(2 \times M\) images to process we can easily
+distribute \(2\) images per machine and then collect the results in the end.
+Because images that come from the social media streaming endpoints are rather
+independent and processing them represent perfectly independent tasks, we do
+not even need to collect the results, but this is a discussion we will have in
+\labelindexref{Section}{sec:sys-arch}.
+
+One of the main characteristics of the system is that it has to allow
+introducing new \textit{known} logos or removing old ones in an easy manner.
+It is allowed to have a small delay of a few minutes before the system can
+recognize the new logo when we want to insert it
+int the \textit{known logos database}, but not hours or, even worse,
+days. By easy we mean here fast and reliable rather than easy from the end user point of
+view. The actual process is ok to involve digging into the filesystem,
+updating some directory, restarting some components, but this process has to
+be seamless from the whole system perspective, we cannot afford shutting
+everything down and restarting just because we want to insert a new logo.
+
 \todo{Explain what were the requirements, i.e.
-* the system has to be written in Scala (Hootsuite requirement)
-* has to be very easy to scale horizontally
-* has to offer a simple/fast way of introducing a new logo to the database
 * has to store the positive images to a database and annotate them with the
   found logo}
 
 \subsection{Kafka -- A Messaging System}
 
 \todo{Talk about general Kafka architecture, why is it good in this situation}
+
 \subsection{Scala}
+\label{sub-sec:scala}
+
 \todo{General stuff about Scala. Advantages/disadvantages}
 
 \section{System Architecture}
+\label{sec:sys-arch}
 
 \todo{Prepare the next subsections}
 
@@ -41,5 +102,6 @@ data do we send. How do components fetch images without sending them around.}
 \todo{Talk on a diagram that explains the complete dataflow}
 
 \section{Logo Recognition Algorithm}
+\label{sec:logo-alg}
 \todo{Explain the algorithm. Talk about the general idea. Why is it good in
 our situation.}
