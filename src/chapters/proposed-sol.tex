@@ -1,0 +1,45 @@
+\chapter{Proposed Solution}
+\label{chapter:proposed-sol}
+
+\todo{Overview of this chapter. Focus on the fact that the system is algorithm
+agnostic. It can basically do any type of image computation.}
+
+\section{Requirements and Technologies Used}
+\todo{Explain what were the requirements, i.e.
+* the system has to be written in Scala (Hootsuite requirement)
+* has to be very easy to scale horizontally
+* has to offer a simple/fast way of introducing a new logo to the database
+* has to store the positive images to a database and annotate them with the
+  found logo}
+
+\subsection{Kafka -- A Messaging System}
+
+\todo{Talk about general Kafka architecture, why is it good in this situation}
+\subsection{Scala}
+\todo{General stuff about Scala. Advantages/disadvantages}
+
+\section{System Architecture}
+
+\todo{Prepare the next subsections}
+
+\subsection{Fetch Module}
+\todo{Explain how images are fetched from the Social Network, how do we store
+them. How are they passed to the next components etc.}
+
+\subsection{Detector Module}
+\todo{Explain how does a detector work. Where it pulls data from. Focus on the
+fact that detectors are algorithm agnostic}
+
+\subsection{Annotated Data Storage Module}
+\todo{Where is data stored. How is it stored. How do we pull data from the
+database}
+\subsection{Queing System}
+\todo{Explain how messages get passed around. Talk about message types. What
+data do we send. How do components fetch images without sending them around.}
+
+\subsection{Data Flow}
+\todo{Talk on a diagram that explains the complete dataflow}
+
+\section{Logo Recognition Algorithm}
+\todo{Explain the algorithm. Talk about the general idea. Why is it good in
+our situation.}

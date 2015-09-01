@@ -1,0 +1,163 @@
+\chapter{Existing Work}
+
+Like we saw in the previous chapter, social media analytics has become more
+and more important, therefore the businesses centred around it have gained a
+lot more attention because they produce a lot more impact. Over the past few
+years, whole companies like Hootsuite or Sprout
+Social\footnote{\url{http://sproutsocial.com}} emerged around the social
+media ecosystem offering a large variety of tools not only for analytics, but
+for optimizing social media experience in general. Not unexpectedly, gigants
+like Google or Facebook have built tools that help their users to better
+understand how they perform on their very own social network.
+
+However, all these above solutions can be called rudimentary, at most, when it
+comes to logos. Most of them do not even take logos into account, while others
+have recently started to do some work in the domain. Of course, there is
+already some progress done in the industry and it seems quite professional,
+but its main disadvantage is that it is proprietary technology. The solution
+that Ditto Labs, Inc\footnote{\url{http://ditto.us.com}} is promoting is one
+of the very few in the industry and seems promising offering visual search in
+social media streams, but it is not open source so we cannot say much about
+their approach.
+
+In the next section we will explore one of the most innovative applications of
+image recognition in social media, while for the rest of this chapter we will
+concentrate on two techniques of logo recognitions, one of them featuring many
+written papers in the Computer Vision domain.
+
+\section{Image Based Analytics in Social Media}
+
+One of the new startups in the social media analytics industry is
+Curalate\footnote{\url{http://www.curalate.com}}, which, according to their
+claims, is the world's leading marketing and analytics suite for the visual
+web. "Their business started around Pinterest and tried to analyze Pins for
+their potential to expose campaigns and products. As they began to build the
+business, they realized many people do not use text on Pinterest as they do on
+other social media sites and therefore needed to figure out a way to
+specifically analyze images on their
+own"\footnote{\url{http://www.psfk.com/2014/06/curalate-social-image-analysis.html}}.
+
+Curalate's main idea is that people started to prefer communicating using
+images, especially on social networks dedicated for this, like Pinterest or
+Tumblr, and so they try to use object recognition techniques to offer better
+insight to their clients. Curalate CEO, Apu Gupta, said in an interview:
+"Before people buy, they save an image of a product and pin it on Pinterest
+or post it on Tumblr. After they buy, they might take a selfie with their new
+sweater and post it on Instagram."
+
+One true thing that stands for all the work done in the domain is that
+none\footnote{To the best of our knowledge} of the companies involved released
+an open source platform that allows multiple types of social media image
+processing, not only logos or objects.
+
+\section{Object and Logo Recognition}
+
+Let us dive now in the realm of object recognition as a stand alone activity,
+not paired up with social media or marketing purposes. Fortunately, the
+Computer Vision is a well studied and researched field and there is constant
+progress in the area. Before proceeding, let's be clear with the term
+\textit{object recognition} which can be defined as the "process for
+identifying a specific object in a digital image or video. Object recognition
+algorithms rely on matching, learning, or pattern recognition algorithms using
+appearance-based or feature-based techniques. Common techniques include edges,
+gradients, Histogram of Oriented Gradients (HOG), Haar wavelets, and linear
+binary patterns."\footnote{\url{http://www.mathworks.com/discovery/object-recognition.html}}
+
+In the next sections, we will see some of the techniques used for object or
+logo recognition together with advantages and disadvantages. Before that,
+let's see what is different in recognizing a logo compared to recognizing an
+object, because if there were no differences we could simply use any type of
+object recognition approach and apply it in our case. 
+
+The first one that comes to mid, if we look at
+\labelindexref{Figure}{img:8-logos}, may probably be the \textit{color}. One of the most
+definitive characteristics of a logo is that its color changes very rarely,
+or, if it actually changes, we can almost consider it to be another logo. There are
+brands that change their logo color drastically over time (i.e. Apple), but
+that is not the common case. Another important fact about the color is that
+not only there are few or inexistent changes, but there are few colors that
+appear in the logo itself, to begin with. If we take the Twitter, Dropbox or
+Honda logos, we can clearly see that they are made of one single color, maybe
+with slight gradients.
+
+\fig[scale=0.4]{src/img/8-logos.pdf}{img:8-logos}{Random Logos}
+
+Even the Metro Goldwyn Mayer logo, which seems very different compared to the
+other 7 logos, has one dominant color. Exceptions from this rule make Google
+and the old Apple logo, but even though they comprise of several colors, these
+are mostly primary and they do not overlap, so we can see a very abrupt
+transition from one color to another, one that do not usually occurs in a
+natural environment.
+
+This observation brings us to the next major difference between a logo and a
+random object, the \textit{shape}. While an object, despite being the same
+type of object, can have different shapes and colors (imagine that we are
+trying to do facial recognition), a brand's logo is always the same. It is one
+of the key ideas in using a logo that it never has to change in order for
+people to remember and recognize it easily, so we can also use it to our
+advantage. Therefore, we can assume that a specific logo, like the Google one,
+for example, will appear with the same font, the same aspect ratio, the
+same amount of space between its letters and so on and so forth. In some
+cases, it is even illegal to change the aspect of a logo, so we can rely on
+this and use it to our advantage.
+
+That being said, we can also do another important observation regarding logos:
+they are very rarely, if at all, rotated. There are cases when we have to
+analyze an image with a Coca Cola can that is flipped on one side so the logo
+is also rotated 90 degrees, but these are situations that happen in less than
+10\% of the images used to build this project. With this in mind, we can
+safely state that considering logo rotation is not the biggest concern
+regarding the scope of this thesis.
+
+To sum up the above observations, we have seen that three features of a logo
+usually stay the same across multiple occurrences: \textit{color},
+\textit{shape} and \textit{orientation}. Taking this into consideration, when we
+speak about logo recognition a natural idea should come to mind:
+\textit{Template Matching}.
+
+\subsection{Template Matching Approach}
+
+This technique is one of the simplest, yet effective ones used in this area of
+study. In template matching, the query image is matched against an existing
+template according to a similarity measure, for example the Euclidean
+distance. "The templates can be represented as intensity or color images, when the
+appearance of the object has to be considered. Appearance templates are often
+specific and lack of generalization because the appearance of an object is
+usually subject to the lighting condition and surface property of the object.
+Therefore, binary templates representing the contours of the object are often
+used in object detection since the shape information can be well captured by
+the templates. Given a set of binary templates representing the object, the
+task of detecting whether an image contains the object eventually becomes the
+calculation of the matching score between each template and the
+image."\cite{improved-template}
+
+One place where we can find a good implementation of the template matching
+algorithm is the open source computer vision library, OpenCV\cite{open-cv}.
+We will see later, in \labelindexref{Chapter}{chapter:proposed-sol}, that we
+are actually using the OpenCV C++ library within the logo detection component. As
+\labelindexref{Figure}{img:sliding-template} shows, the main idea here is to
+have a template smaller than the actual query image (in case we find ourselves
+in the trivial case where the template is bigger than the query image it means
+there is no possible match) and try and fit the template in every possible
+position on the original image. If the query image is big enough and the
+sliding box small compared to the former, it is not that hard to notice an
+obvious flaw of this approach: it can be very slow in some cases. Fortunately,
+in real life situations, there is usually no need for matching at high
+resolutions, so both images can be safely resized to much smaller sizes as
+long as we do not lose too many details, especially in the template image.
+
+\fig[scale=1]{src/img/template-matching.jpg}{img:sliding-template}{Sliding
+Template}
+
+Given its nature, the template matching technique is mainly used in situations
+where the object characteristics are rather constant or where speed is more
+important than very high accuracy. If we remember the numbers stated in
+\labelindexref{Section}{sec:proj-motivation} from \labelindexref{Chapter}{chapter:intro},
+it is not a surprise that this type of algorithm was the main choice in the implementation.
+
+\todo{Present this type of technique. Implementations. Usages.
+Advantages/Disadvantages. Performance blah blah}
+
+\subsection{Learning Approach}
+\todo{Present this type of technique. Implementations. Usages.
+Advantages/Disadvantages. Performance blah blah}
