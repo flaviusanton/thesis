@@ -60,16 +60,68 @@ It is allowed to have a small delay of a few minutes before the system can
 recognize the new logo when we want to insert it
 int the \textit{known logos database}, but not hours or, even worse,
 days. By easy we mean here fast and reliable rather than easy from the end user point of
-view. The actual process is ok to involve digging into the filesystem,
+view. The actual process is fine to involve digging into the filesystem,
 updating some directory, restarting some components, but this process has to
 be seamless from the whole system perspective, we cannot afford shutting
-everything down and restarting just because we want to insert a new logo.
+everything down and restarting just because we want to insert a new logo
+because the service has to run continuously.
 
-\todo{Explain what were the requirements, i.e.
-* has to store the positive images to a database and annotate them with the
-  found logo}
+The process of moving an image through the pipeline from one end to the other
+should finish either with a positive result (i.e. we found this list of logos
+in the image) or with a negative one. In the former case, one of the
+components has to store the image (or the image link) in a database together
+with some data to describe the result, for example the logo list. This type of
+metadata is often called \textit{annotated data} along this thesis and we may
+also refer to the pair \((image, logo list)\) as the \textit{annotated
+image}.
+
+Despite being designed as mostly a background job that sometimes stores
+results in a database, our system have to have at least a minimum interaction
+with a human and we decided that interaction to be in the form of a minimal
+web interface where one can basically see the pairs \((image, logo list)\)
+from the database, but in a nicer form. Also, the dashboard has to offer at
+least a table or chart with statistics regarding recognized logos. To increase
+the usefulness of the dashboard it should be real time and compute the
+statistics as long as new logos are discovered. It is fine to have a slight
+delay in updating the dashboard, but the web application should poll the
+database at least once a minute.
+
+Because our focus is rather on the infrastructure and reliability rather than
+the algorithm approach itself which can be changed at any future time, but
+also because we cannot miss important data and have false statistics, the system
+is not allowed to lose messages. In the scope of this thesis, by
+\textit{message} we understand the output of one component and the input of
+the next component in the pipeline. Of course, the first component, Fetch
+Module (see \labelindexref{Section}{sub-sec:fetch-module}) and the last
+component, Annotated Data Storage Module (see
+\labelindexref{Section}{sub-sec:ads-module}), make an exception from this rule
+as they only output messages, in the case of the former, or consume messages, if we speak
+about the latter. That does not mean that the first component has no input, it
+means that its input comes directly from the outside world and represent
+unstructured data, i.e. tweets or posts, streamed by the Social Networks.
+Because the volume of steamed data can become very large, we have to make sure
+that all this data gets processed on time by our system, so in order for this
+to happen, the first component has to quickly get rid of the posts and pass
+the work to the next layers.
+
+When it comes to passing messages around, we needed a good infrastructure that
+supports not necessarily large amounts of data, but a tool that allows multiple producers,
+multiple consumers and does not offer the same message twice for processing, because we do not
+want the same image to be analyzed multiple times. We say that we
+do not need large amounts of data, because we do not have to send entire
+images between components. We describe in
+\labelindexref{Section}{sub-sec:fetch-module} the way we store images
+so that each component can fetch them directly from the centralized storage, thus avoiding
+passing them around each time we send a message. Therefore, our messaging
+system has to be reliable, seamlessly scalable and have a fast way of
+partitioning the data channels, because we do not want to mix messages around,
+we only need one channel between two types of components without allowing
+other processes to have access to that data. One of the mature, distributed
+open source, messaging systems available is Apache
+Kafka\footnote{\url{http://kafka.apache.org}}.
 
 \subsection{Kafka -- A Messaging System}
+\label{sub-sec:kafka}
 
 \todo{Talk about general Kafka architecture, why is it good in this situation}
 
@@ -81,9 +133,97 @@ everything down and restarting just because we want to insert a new logo.
 \section{System Architecture}
 \label{sec:sys-arch}
 
-\todo{Prepare the next subsections}
+In this section we explore the system architecture as a whole and then we go
+one level up and explore each separate component.
+\labelindexref{Figure}{img:hl-arch} shows a general overview of the whole
+pipeline. As shown, data comes from the social networks and enters the
+pipeline through the Fetcher Module which filters every post or tweet and
+writes the output to a Kafka topic (see
+\labelindexref{Section}{sub-sec:kafka}) from which several processes read and
+download the images. The downloaded data then gets sent by the Retrievers to
+the centralized Image Store from which the Detectors pull images for
+processing purposes. The Detectors are also connected with the Retrievers by a
+Kafka topic. After the detection process, the life of an image can stop, in
+case nothing was detected, or can continue to the Storage Module which talks
+to a MongoDB\footnote{\url{https://www.mongodb.org}} database. The database
+gets polled periodically by a web application which can be accessed directly by a human
+user.
+
+\fig[scale=0.35]{src/img/hl-arch.pdf}{img:hl-arch}{High Level System
+Architecture}
+
+Even though some of the components may seem that could have been very well
+integrated into other ones (for example Image Retriever into Fetcher), we will
+shortly see that if we do some computations there is impossible to use only
+one machine for some of them, in our case for the Image Retriever component.
+Therefore, the reason why some of the modules are drawn as duplicated
+rectangles is to emphasize that they are replicated processes, so not
+necessarily need to be run on different machines, but there is a need for more
+instances of them. The replication is not needed, in this case, for
+reliability and fault tolerance purposes, but in order to increase the power
+of consuming more incoming data.
+
+Apart from the replicated components, \labelindexref{Figure}{img:hl-arch}
+shows another strange characteristic: there are two piles of Logo Detectors.
+By this, we only try to show that some detectors are specialized in recognizing
+some logos, while other pile of detectors are specialized in another set of
+logos. We took this decision because the process of testing an image against
+each and every possible logo in the database would take too long on a single
+detector, so it is better to have an even work distribution. Moreover, the most
+important reason we chose to do this is that, if we want to add a new logo in
+the equation, we only have to restart one pile of detectors, which may be
+considerably faster than restarting all detectors.
+
+As we have seen in \labelindexref{Section}{sub-sec:kafka}, the messaging
+system we chose for our implementation can keep messages for as long as they
+are needed and producers or consumers can come and go at any given time
+without impacting the stored data. To use this to our advantage, each
+component basically runs an infinite loop where it waits for input, do some
+computation and writes to the corresponding queue towards the next component
+in the chain, as the code in \labelindexref{Listing}{lst:comp-workflow} shows.
+
+\lstset{caption=General Component Workflow,label=lst:comp-workflow}
+\begin{lstlisting}
+initializeComponent();
+consumer = new KafkaConsumer(INPUT_TOPIC);
+producer = new KafkaProducer(OUTPUT_TOPIC);
+
+while (true)
+  message = consumer.consumeOne();
+  result = process(message);
+  producer.produce(result);
+\end{lstlisting}
+
+Having this type of workflow for each component is also very convenient from
+the component update or upgrade perspective. Basically, each component is a
+stateless process that takes some input, applies a function without that does
+not need any state and then returns an output. The only entity responsible for
+keeping the state is Kafka, our distributed messaging system, so fortunately
+for us, we can turn down and up any component at any given time. In a
+hypothetic situation where all Detectors have failed and went down, the system
+is well able to recover if the Detectors restart, providing there is enough disk space
+to cache all those incoming messages and images. However, disk have become so
+cheap nowadays that we can afford having a lot of it, such that the probability of
+complete system fail (data loss) is very low.
+
+As far as component restarts concern, they are also needed in case of a new
+logo being added to the known logo database or in case of a code base update.
+It is true that in the latter situation, we also have to make sure the changes
+are compatible, but the biggest concern should be how do we keep the whole
+system running, in spite of updating some of the components. This problem is
+also automatically solved by the fact that our clever messaging system is
+caching for as long as we need it to. If a consumer simply goes down for
+whatever reason, Kafka will notice that, but there is no action required as
+the remaining consumers will simply take that workload. If there is no
+consumer left or too few of them, Kafka will cache the messages until there
+is again a sufficient number of consumers.
+
+That being said, in the following sections, we present each separate component that takes part
+into the processing pipeline.
 
 \subsection{Fetch Module}
+\label{sub-sec:fetch-module}
+
 \todo{Explain how images are fetched from the Social Network, how do we store
 them. How are they passed to the next components etc.}
 
@@ -92,6 +232,7 @@ them. How are they passed to the next components etc.}
 fact that detectors are algorithm agnostic}
 
 \subsection{Annotated Data Storage Module}
+\label{sub-sec:ads-module}
 \todo{Where is data stored. How is it stored. How do we pull data from the
 database}
 \subsection{Queing System}
