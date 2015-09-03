@@ -110,7 +110,7 @@ multiple consumers and does not offer the same message twice for processing, bec
 want the same image to be analyzed multiple times. We say that we
 do not need large amounts of data, because we do not have to send entire
 images between components. We describe in
-\labelindexref{Section}{sub-sec:fetch-module} the way we store images
+\labelindexref{Section}{sub-sec:im-store} the way we store images
 so that each component can fetch them directly from the centralized storage, thus avoiding
 passing them around each time we send a message. Therefore, our messaging
 system has to be reliable, seamlessly scalable and have a fast way of
@@ -195,8 +195,8 @@ while (true)
 \end{lstlisting}
 
 Having this type of workflow for each component is also very convenient from
-the component update or upgrade perspective. Basically, each component is a
-stateless process that takes some input, applies a function without that does
+the update or upgrade perspective. Basically, each component is a
+stateless process that takes some input, applies a function that does
 not need any state and then returns an output. The only entity responsible for
 keeping the state is Kafka, our distributed messaging system, so fortunately
 for us, we can turn down and up any component at any given time. In a
@@ -216,7 +216,7 @@ caching for as long as we need it to. If a consumer simply goes down for
 whatever reason, Kafka will notice that, but there is no action required as
 the remaining consumers will simply take that workload. If there is no
 consumer left or too few of them, Kafka will cache the messages until there
-is again a sufficient number of consumers.
+is again a sufficient number of consumers to continue working.
 
 That being said, in the following sections, we present each separate component that takes part
 into the processing pipeline.
@@ -224,18 +224,157 @@ into the processing pipeline.
 \subsection{Fetch Module}
 \label{sub-sec:fetch-module}
 
-\todo{Explain how images are fetched from the Social Network, how do we store
-them. How are they passed to the next components etc.}
+The Fetch Module is the frontend of our system as it is the only component
+that connects to the outside world. It is responsible for fetching streams of
+unstructured data, i.e. posts, tweets etc, filtering this data in order to
+keep only what is of interest to us, namely images and downloading these
+images. After that, the downloaded image gets stored by the Image Store module
+and the Detectors are notified by the incoming message in the corresponding
+Kafka queue. This is what happens in a few words, but let us explore some
+of the subtleties of this module.
+
+First of all, there is no need to have multiple machines, nor processes that
+are responsible for fetching posts or tweets from the streaming endpoints. To
+back this up, we make a reference to
+\labelindexref{Section}{sec:proj-objectives} and the calculations we did
+there. If we sum all the incoming tweets and posts we barely reach around 250
+messages per second. Given the fact that images are not included as data
+inside the tweets, but as links and we know that a tweet has at most 140
+characters (let us assume that all the data comes from Twitter and a link has
+at most 100 bytes for simplicity) simple math yields that this component has
+to face 60KB per second (\((140B + 100B) \times 250 = 60KB\)), a value that
+was modest even 10 years ago.
+
+One may simply ask what happens with this component in case of hardware or
+software failures and it is a valid question. Well, the answer is so simple
+that it may be shocking at the first glance: nothing happens immediately. By
+this, we do not mean that the system stops working entirely, but for a period
+of time, the fetch component will simply be down and there will be no new
+tweets fetched. We chose to do this mainly for two reasons. First, because you
+cannot have multiple connections to the same social network endpoint. The
+Twitter APIs, for example, limit the number of connections at 1 per
+application, so there is no point in having replicas for this component.
+Second, because even if we would have additional replicas being ready to jump in when the
+main replica fails, there is still a number of streamed tweets that will be
+lost forever. With this in mind and the fact that Twitter sends us only 1\%
+of their data, there is nothing to worry about if we lose a number of streamed
+tweets, because we do not have control of which tweets they stream. Those
+\(N\) tweets that we presumably cannot afford to lose could have been in the
+other 99\% from the beginning. The most important thing about our system is to
+keep the Detectors busy all the time, because they are the real bottleneck of
+the whole pipeline, even if the Detectors have the biggest number of machines
+assigned. Due to cost limitations, (see
+\labelindexref{Section}{sec:cost-and-resource}) we periodically need to shut
+down the Fetch Module, to allow the Detectors to keep up with all the incoming
+data.
+
+In the future, if the hardware power is increased considerably, there is also
+the possibility of adding dedicated Fetcher replicas that are ready to jump in
+the game in case of a failure, but for now this is not a big concern.
+Moreover, if we add more social networks to the system such that one single
+Fetcher has to download from too many endpoints, we might also change the
+design and split the work between multiple Fetchers.
+
+As we have stated before, the Fetcher is only responsible for getting the
+stream of data and filter the images and by filtering means discarding the
+whole message content but the image URL. The image URL is the only thing that
+gets past the Fetcher and gets written in a corresponding Kafka queue on which
+more Image Retriever processes await.
+
+It should be clear to the reader, by now, that the Fetcher and Image Retriever
+(see \labelindexref{Figure}{fig:hl-arch}) are two separate processes, but they
+do not need to run on different machines. Because the processing power needed here is
+very low, but also because these two components are very bound to each other
+in terms of logic, we are considering these two types of processes as
+being one single component. Even though there is a Kafka queue between them,
+this is used more as a caching level rather than as a logical boundary.
+
+The Image Retriever processes are, therefore, replicated mostly regarding
+failure resistance, but also because of bandwidth. If we know that an image is
+approximately 50--200KB and we have about 30 images per second to process that
+gives us \(30 \times 200KB = 6MB\) of data to download per second in the worst
+case. If we also take peaks due to busy hours into consideration, the amount
+of data to download in one second can exceed 10MB so we do not want all this
+incoming traffic on one single machine. This is the main reason we should at
+least 2 or 3 Image Retrievers if our data connection is good.
+
+After the download, an Image Retriever is responsible for two more tasks.
+First, it has to call the Image Store component
+(\labelindexref{Section}{sub-sec:im-store}) and send the image to it.
+Secondly it has to produce a message containing the image ID (image URL) and
+write it to the Kafka queue on which the Detectors await.
+
+\subsection{Image Store}
+\label{sub-sec:im-store}
+
+The Image Store component is basically an interface that is an abstraction of
+the storage engine used underneath. It represents a one common entity that
+knows where images are stored and can do two types of operations:
+\texttt{putImage(imageID, imageBytes)} and \texttt{getImage(imageID)}.
+
+As \labelindexref{Figure}{img:im-store} shows, in the present future we simply
+need to be wrote and read only once in 99\% of the cases. In the future, if we
+decide to move the whole system in the Amazon Cloud, the underneath storage
+can be Amazon S3\footnote{\url{https://aws.amazon.com/s3/}}. For now, it is
+use the disk in order to store images. This is mainly because they currently
+good to have the storage hid behind a good abstraction layer such that other
+\fig[scale=0.5]{src/img/im-store.pdf}{img:im-store}{Image Store Component}
+components do not know who they are talking to.
 
 \subsection{Detector Module}
-\todo{Explain how does a detector work. Where it pulls data from. Focus on the
-fact that detectors are algorithm agnostic}
+
+This module is the most computationally intensive one and requires more than
+90\% of the whole processing power available. In our logo recognition
+situation, these processes are the bottleneck for the entire system so if we
+were to look for performance optimizations this should be the first place to
+check. However, we designed the system such that it is entirely algorithmic
+agnostic, so in a situation where a different, less intensive, algorithm is
+run inside those Detectors, the situation may change, at least with regard to
+the bottlenecking problem. Truth be told, this would be very unlikely, because
+image processing tasks are computationally intensive by their nature.
+
+A Detector process pulls its data from the Kafka queue where Image Retrievers
+write imageIDs, in our case image URLs. Once a Detector has the image URL, it
+requests the actual image from the Image Store
+(\labelindexref{Section}{sub-sec:im-store}) and starts processing it. The
+processing consists in calling an abstract interface that represents an
+algorithm. One such interface takes the image as parameter and outputs a list
+of found features of the image, in our case logos. This list of found features
+is then compacted in a message and quickly wrote to the next Kafka queue on
+which the Annotated Data Storage Module
+(\labelindexref{Section}{sub-sec:ads-module} awaits. This is workflow is
+better described in \labelindexref{Figure}{img:im-detector} below. As the figure
+shows, the detectors do not rely on a specific algorithm and can
+run any type of processing, providing they are fed up with the implementation.
+We tried to illustrate this idea in the two lightly colored boxes.
+
+In our type of implementation, with the Detectors being actually logo
+Detectors, there is also a need to store somewhere the known logos. Our logo
+detection algorithm (see \labelindexref{Section}{sec:logo-alg}) does not
+recognize logos out of nowhere, it rather compares them to a list of known
+logos. The design decision we took in this case, at least for now, was to
+bundle the list of images with the logo detection algorithm such that the
+process will have them in the \texttt{resources/} folder. The downside of this
+\fig[scale=0.5]{src/img/im-detector.pdf}{img:im-detector}{Detector Workflow}
+approach is, of course, the fact that every time a logo needs to be updated we
+have to rebuild the Detector and re-run it. The good part is that this process
+is very easy to do, we just have to add the new set of images to a folder
+and recompile the program. Moreover, we only need to do this operations only
+on one subset of detectors, namely 3 of them. We chose 3 as the magic number
+here in order to have triple replication. For more details about the queueing
+system and how the Detectors are organized, please follow
+\labelindexref{Section}{sub-sec:q-system}.
 
 \subsection{Annotated Data Storage Module}
 \label{sub-sec:ads-module}
+
+At this moment we find ourselves beyond the Detector 
 \todo{Where is data stored. How is it stored. How do we pull data from the
 database}
+
 \subsection{Queing System}
+\label{sub-sec:q-system}
+
 \todo{Explain how messages get passed around. Talk about message types. What
 data do we send. How do components fetch images without sending them around.}
 
