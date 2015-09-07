@@ -368,18 +368,45 @@ system and how the Detectors are organized, please follow
 \subsection{Annotated Data Storage Module}
 \label{sub-sec:ads-module}
 
-At this moment we find ourselves beyond the Detector 
-\todo{Where is data stored. How is it stored. How do we pull data from the
-database}
+At this moment we find ourselves beyond the Detector wall and the volume of
+incoming traffic has diminished considerably, because at this stage we only
+have \textit{interesting} images from the logical, human point of view. These
+images are about 1\% of the total images analyzed, so, if we assume that the
+Detector cohorts can keep up with the 30 images pushed into the pipeline by
+the Fetcher, the storage module has to face 1 image every 3--4 seconds on
+average. This calculation proves that we only need one process of this kind.
+In case of an unlikely event of a hardware of software failure, we only have
+to restart the component. The good part is that we are again backed up by the
+messaging system that caches the messages until the process goes back up, so
+we do not lose precious analyzed and found positive data.
 
-\subsection{Queing System}
+Mostly because our messages are basically JSON messages but also because of
+reliability we chose MongoDB\footnote{\url{https://www.mongodb.org}} as the
+database for our system. The storage module is also agnostic about the type of
+computation we did in the previous layers, so the data that gets stored is
+nothing more than the image URL and the list of features found in the image.
+We call this features \textit{annotations}, as the
+\labelindexref{Listing}{lst:mongo-json} shows.
+
+\lstset{caption=MongoDB Document,label=lst:mongo-json}
+\begin{lstlisting}
+  {
+     "imageURL":    "http://example.com",
+     "annotations": [ "Honda",
+                      "Ford",
+                      "Mazda",
+                    ]
+  }
+\end{lstlisting}
+
+The database is also polled once every 10 seconds by the simple web dashboard
+in order to check for new logo occurrences.
+
+\subsection{Messaging and Queing System}
 \label{sub-sec:q-system}
 
 \todo{Explain how messages get passed around. Talk about message types. What
 data do we send. How do components fetch images without sending them around.}
-
-\subsection{Data Flow}
-\todo{Talk on a diagram that explains the complete dataflow}
 
 \section{Logo Recognition Algorithm}
 \label{sec:logo-alg}
