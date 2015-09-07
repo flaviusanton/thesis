@@ -123,7 +123,49 @@ Kafka\footnote{\url{http://kafka.apache.org}}.
 \subsection{Kafka -- A Messaging System}
 \label{sub-sec:kafka}
 
-\todo{Talk about general Kafka architecture, why is it good in this situation}
+"Apache Kafka is a distributed, partitioned, replicated commit log service. It
+provides the functionality of a messaging system, but with a unique
+design."\cite{kafka}
+
+First, let us be clear with their terminology for some of the bits that are of
+direct interest to us. Kafka maintains feeds of messages in categorized queues
+called \textit{topics}. These topics are, at the low level view, nothing more
+than large buffer caches where some processes write data (\textit{producers})
+and other processes read data (\textit{consumers}). Kafka is designed to run
+over a cluster of servers, each one of those being called a \textit{broker}, but
+for the scope of this thesis it is not necessary to know what a broker is.
+
+The most important abstraction that Kafka provides is the topic because it is
+practically the way we can sort and categorize the large amount of data that
+we are dealing with. The Kafka cluster maintains, for each topic, a commit log
+where data is appended and cached for a configurable amount of time. For
+example, if the log retention is set up at one day, the messages received into
+one Kafka topic are kept for 24 hours, after which they will be deleted in
+order to free disk space.
+
+The two main types of active entities in a Kafka environment are the consumers
+and the producers. A producer is responsible for connecting to one Kafka
+broker and sending the message to the correct topic, but also for choosing the
+right \textit{partition} to which it wants to send the message.
+
+The consumers are a little bit more special. Kafka introduces another abstraction
+here, namely the \textit{consumer group} which is nothing more than several
+consumers grouped by a common identifier. What is actually
+interesting here is that, by this approach, one can choose from two models of
+usage: message queue and publish-subscribe model. What Kafka does is that all
+the messages from one partition go to all consumer groups (publish-subscribe
+model), but only one consumer from a consumer group can read a given message
+(queueing model). This proved over time to be extremely useful and it is,
+indeed, in our case also. \labelindexref{Figure}{img:kafka-arch} offers a
+visual interpretation of the two models that Kafka provides. It is a two
+server Kafka cluster hosting 4 partitions with 2 consumer groups. Consumer
+group A has 2 consumers, whereas consumer group B has 4 consumers. The
+interesting part is that each partition is consumed by both consumer groups
+(load balancing), but only one consumer from each consumer group reads the
+message (uniqueness). The good part here is that Kafka is able to provide both
+load balancing and ordering in the scope of the same partition.
+
+\fig[scale=0.7]{src/img/kafka-arch.png}{img:kafka-arch}{Kafka Cluster}
 
 \subsection{Scala}
 \label{sub-sec:scala}
@@ -322,11 +364,12 @@ good to have the storage hid behind a good abstraction layer such that other
 components do not know who they are talking to.
 
 \subsection{Detector Module}
+\label{sub-sec:detector}
 
 This module is the most computationally intensive one and requires more than
 90\% of the whole processing power available. In our logo recognition
 situation, these processes are the bottleneck for the entire system so if we
-were to look for performance optimizations this should be the first place to
+were to look for performance optimizations this should have been the first place to
 check. However, we designed the system such that it is entirely algorithmic
 agnostic, so in a situation where a different, less intensive, algorithm is
 run inside those Detectors, the situation may change, at least with regard to
@@ -400,15 +443,171 @@ We call this features \textit{annotations}, as the
 \end{lstlisting}
 
 The database is also polled once every 10 seconds by the simple web dashboard
-in order to check for new logo occurrences.
+in order to check for new logo occurrences and compute new statistics. Because
+of the rare frequency of the even when we identify a known logo, there is very
+little load on the database, so we only need one small server to keep it
+running. In terms of replicas, we rely on the internal MongoDB replications
+and failure recovery mechanisms.
 
 \subsection{Messaging and Queing System}
 \label{sub-sec:q-system}
 
-\todo{Explain how messages get passed around. Talk about message types. What
-data do we send. How do components fetch images without sending them around.}
+As stated before, we rely on the Apache Kafka when it comes to passing
+messages around and exchange data between different components. Each component
+is connected to the next one by a Kafka channel (topic) through which only the
+same type of messages should be sent. Kafka does not have a mechanism of data
+introspection such that we can discard potentially malformed messages came from
+defective processes, thus we are obliged to do sanity checks every time we
+read a message.
+
+The logo Detectors in our implementation are very slow
+mainly because they have to check an image against a list of logos, not just
+one single known logo. So, if we were to keep adding logos to the known
+database, we would have ended up in the situation where a single logo Detector
+needs minutes or, even worse, hours, to check only one image. Imagine that a
+check against a single logo needs about
+1-2 seconds. If we have 1000 known logos, the Detector needs 1000-2000
+seconds,  which roughly means half an hour. By any definitions of
+benchmarking, evaluations or even the common sense, that is a lot of
+time.
+
+Apart from the main abstraction, the topic, Kafka provides another abstraction, the
+\textit{partition} (see \labelindexref{Section}{sub-sec:kafka}). Because Kafka
+provides these two powerful abstractions, we make use of them especially in
+the case of Detectors. To avoid the above described behaviour, we split all
+available Detectors in detector groups, like
+\labelindexref{Figure}{img:detector-groups} shows. This idea allows two
+important things, the first one being this problem with computation taking too
+much for one photo. It is true that by this method we do not diminish the
+overall needed computational time, i.e. in our case we still have 9 logos to
+test against, but we diminish the time needed per process, i.e. one Detector
+has to test against 3 instead of 9 logos. Besides the advantage of having a
+fair work load distribution, there is also another perk in having this
+Detector organization, namely when adding a new known logo: we only have to do
+it for one group of Detectors (see \labelindexref{Section}{sub-sec:detector}).
+
+One problem that is avoided by Kafka's design is the race between Detectors in
+the same Detector group. If Kafka did not offer a guarantee that messages
+wrote in the same partition are ordered and read by exactly one consumer, we
+would have need to solve the race condition by manually implementing a locking
+mechanism between Detectors from the same group which would have complicated
+the whole system. So, once again, Kafka proved itself a suitable choice in
+this situation.
+
+Messages that we send through Kafka topics from one component to another are
+serialized as JSON documents. Until now, mainly because if the incipient stage
+\fig[scale=0.5]{src/img/detector-groups.pdf}{img:detector-groups}{Detector
+Groups}
+of the project, the messages are very small and have 2-3 keys, so we did not
+feel the need of using a compression library, like
+zLib\footnote{\url{http://www.zlib.net}}, therefore we send messages in clear
+text. In terms of numbers, we are currently using 3 Kafka topics and 3 types
+of messages. The 3 topics are: \texttt{toDownload}, \texttt{toDetect} and
+\texttt{toStoreDetected} and the 3 types of messages are:
+\texttt{DownloadMessage}, \texttt{DetectMessage} and
+\texttt{StoreDetectedMessage}. The first two types of messages consist only in
+the imageID (image URL in our case), whereas the last one has an additional
+list of annotated data (found logos) which is, in most cases, empty.
 
 \section{Logo Recognition Algorithm}
 \label{sec:logo-alg}
-\todo{Explain the algorithm. Talk about the general idea. Why is it good in
-our situation.}
+
+As stated before, the general idea of this project was to create a processing
+pipeline that allows any type of image computations done on images fetched
+from social networks streaming endpoints. In order to have a fully functional
+complete implementation we also had to choose one algorithm and apply it on
+the input data. Therefore, we chose a Logo Recognition algorithm that attempts
+to find logos in a random image based on a database of known logos. Because
+the main requirement was not the algorithm, but because we needed a fairly
+fast and simple one, we chose the Template Matching Approach (see
+\labelindexref{Section}{sub-sec:template-matching}).
+
+The main idea of this approach is to obtain a template from the known logos
+and try to match it in every possible position of the query image and it works
+very well for images that have multiple colors and rich textures or details.
+Unfortunately, logos are most of the time monocolor and, to worsen things up,
+without any distinguishable details, not even gradients, i.e. the Twitter
+logo (see \labelindexref{Figure}{img:8-logos}). The Twitter logo is basically
+a normal, weird shaped light blue spot. With this in mind, if we try to match
+it against a completely blue image (same blue color) it would perfectly match
+in every location. A na{\"i}ve algorithm would even find thousands of matches
+in the given image. To solve this problem we had to came up with an original
+approach and this is: split the image into 4 equally sized squares, match
+each one of the squares independently and, finally, compare the \textit{best
+matched} positions and see if they are in the same order as they were in the
+template. \labelindexref{Figure}{img:4-squares} attempts to explain it better.
+\fig[scale=0.5]{src/img/4-squares.pdf}{img:4-squares}{4-way matching
+algorithm}
+We have the Twitter logo template, one random picture containing the logo,
+the 4-way split template and the matched template over the query image.
+
+As the figure shows, the 4 matched squares are approximately in the same
+relative position as in the original template, thus, according to this
+algorithm standards, is a strong belief that the logo have been identified in
+that position. One thing to notice, though, is that the matches are not in
+exactly the same relative position, and this is mainly caused by the matching
+function used (see \labelindexref{Section}{sub-sec:template-matching}) which
+does an approximation. Throughout our implementation we chose the
+\texttt{CV_TM_CCORR} metric, because it proved itself to be the most accurate
+in the experiments we have run. Another important thing that we have also
+determined by running multiple experiments and doing the average was setting
+the maximum threshold distance allowed between two squares, both horizontally
+and vertically. To be more precise, there is a 20\% (of the square size)
+allowance between the upper row squares and lower row squares and 31\% between
+right and left. Any match that \textit{looks like} the template, but has
+larger distances between its squares, is considered a false match. However, we
+have also determined experimentally that, in some cases, 3 of the squares
+perfectly match themselves onto the query image (less than 5\% gap between
+them), but one of them which matches in a totally different place. In such
+cases, we consider the situation a bad luck event and still return a correct
+match with the condition that the 3 squares that match in the same place have
+to comply with the 20\% and 31\% boundaries.
+\labelindexref{Listing}{lst:4-way-alg} is the pseudocode of
+the 4-way split algorithm that runs inside a Detector process.
+
+\lstset{language=Python,caption=Deciding if a logo is or is not found,label=lst:4-way-alg}
+\begin{lstlisting}
+def match(template_image, query_image):
+  squares = ['red', 'yellow', 'blue', 'green'}
+  for square in squares:
+    template_pos[square] = 4way_split(square, template_image)
+
+  for square in squares:
+    best_match[square] = find_best_match(template_pos[square], template, query_image)
+
+  sq_size_x = template_image.x / 2
+  sq_size_y = template_image.y / 2
+  matches_count = 0
+
+  if x_difference(best_match['red'], best_match['yellow']) > 0.31 * sq_size_x:
+    matches_count += 1
+
+  if x_difference(best_match['blue'], best_match['green']) > 0.31 * sq_size_x:
+    matches_count += 1
+
+  if y_difference(best_match['red'], best_match['blue']) > 0.20 * sq_size_y:
+    matches_count += 1
+
+  if y_difference(best_match['yellow'], best_match['green']) > 0.20 * sq_size_y:
+    matches_count += 1
+
+  if matches_count >= 3:
+    return true
+  return false
+\end{lstlisting}
+
+\labelindexref{Listing}{lst:4-way-alg} presents only the general idea of the
+algorithm. In reality, we have to do all sorts of other checks, like, for
+example, check if the squares respect the distance threshold with their
+neighbours lest they are actually mirrored. For example, the checks in
+\labelindexref{Listing}{lst:4-way-alg} do pass in the event when the red and
+yellow squares are on the lower row instead of the upper.
+
+One last shortcoming of this implementation is that it is very likely to
+produce wrong results in the event when the same logo can be found more than
+once inside the query image. The reasons why this is happening are pretty
+obvious: two squares can match on one logo and the other two squares on
+another one, the final result being false. So, not only we miss one occurrence
+of the logo, but we miss all of them. Fortunately for us, the experiments
+proved that this situation happens so rarely in practice that is far from
+being a concern right now.
