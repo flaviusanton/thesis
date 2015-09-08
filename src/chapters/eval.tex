@@ -1,29 +1,236 @@
 \chapter{Testing and Evaluation}
 
-\todo{Prepare the next sections. Explain why they are relevant for system
-evaluation}
+In this chapter we talk about the performance of the logo recognition
+algorithm as well as the supporting pipelined infrastructure. As well as with
+other computer software programs, testing is important to ensure that the
+system does not produce wrong results and evaluation is a way of quantifying
+the performance. In our case, testing is a little bit more trickier,
+especially for the end result and that is because if we had a program that would
+tell us if a logo is or is not present in an image, we could have used that
+program in the first place. This correctness problem is very common in
+Computer Vision and we also have to face it here.
+
+To ensure that we produce results as sane as possible, we turned to the human
+eye for verification. Thus, once in a while, we manually checked random images
+where the system supposedly found a logo to see if the logo is actually
+present. Unfortunately, this type of verification only gives us an approximate
+percentage of the false positives that the system produces. In order to have a
+more accurate understanding over the accuracy of our program, we ended up
+using the precision and recall measurements which are a common way of
+quantifying relevancy, especially in pattern recognition. We present more
+details about precision and recall in \labelindexref{Section}{sec:prec-recall}.
+
+Although, do not forget the main purpose of this thesis: building a pipelined
+infrastructure that allows any type of image computation done on images
+fetched from social networks. In order to have a general idea about how well
+the system performs, we also did some cost and resource consumption analysis of
+the current system. We present a more detailed view over this facts in
+\labelindexref{Section}{sec:cost-and-resource}, but first let us see some of
+the representative numbers of the current algorithm.
 
 \section{Algorithm Performance}
-\todo{Present some numbers of how fast the algorithm is.}
+\label{sec:alg-perf}
+
+The current algorithm that runs inside a Detector is the logo recognition one,
+presented in \labelindexref{Section}{sec:logo-alg}. Although it may seem that
+the 4 way split combined with the multiple scale scan we are doing,
+considerably slows down the whole process, in practice this proved to be not
+bad at all. The first argument that comes in the defense of this practice is
+that it is, indeed, producing better results. Either if we drop the 4 way
+split or the multiple scale scan, the results we get are far worse. It is true
+that in a normal situation you would prefer an algorithm that runs 4 times
+faster, but has 10 to 20\% worse results, but in our case if we drop one of
+the steps the recall we get goes as down as 25\% of the total input images,
+which is a decrease in performance of over 200\% (we currently have a recall
+of 55--75\%). The second argument in the favour of our algorithm is that both the
+4 way split and the multiple scale scan are heavily and easily parallelizable,
+which is a very good property for an algorithm, especially nowadays when
+mainstream processors come with 4 or even 8 cores.
+
+That being said, the total time needed to test a template of \(680 \times 480\)
+pixels against an image of the same size, dropping the time needed to read and
+load images into memory is roughly 0.075 seconds or 75 milliseconds, which
+seems blazing fast. If we take into consideration that we have to do 4
+separate matches for one single template, the time goes up to \(4 \times 0.075
+= 0.25 s\) and starts to get bigger. Adding the average of 15 round
+trips per query, the time seems to become \(15 \times 0.25 = 3.75 s\)
+which looks like a long running time for an algorithm of this type (template
+matching). In practice, using a processor with 4 cores and parallelizing each
+one of the steps the time needed for the whole process goes down about 3.5
+times to an approximate value of 1.25 seconds needed per query. It is still a
+large value, but, at least, starts to look like something we can use in order
+to achieve a real time system.
+
+The 1.25 seconds per query we have seems very decent at a first glance, but
+let's explore what this actually means in terms of cost and resource
+consumption, because a small \textit{0.1s} improvement at the algorithm level, means a
+\(3s\) gain for the whole system at the speed of 30 images per second, so this
+actually means that we save up computation time as for \textbf{90 images} if
+we assume that the system keeps up the pace.
 
 \section{Cost and Resource Consumption}
 \label{sec:cost-and-resource}
 
-\todo{Do an estimation of how many machines the system needs in order to be
-effective (i.e. do not fall behind of social media streaming endpoints).
-Resource consumption etc.}
+To better understand what processing power we have, what performance the
+algorithm really has and what are the costs of running the system at full
+capacity we do a cost evaluation in this section.
+
+First, let us assume that we want to have enough power to process 30 images
+per second. In the event of busy hours and peaks of more than 30 images we can
+rely on the queueing system that powers the whole infrastructure, Kafka, that
+will cache data until we can process it. We choose 30 images here because it
+is the actual average number of images streamed by Twitter's Streaming API
+endpoints and because it is a fairly round number. If testing a query image
+against a template logo takes about 1.25s (see
+\labelindexref{Section}{sec:alg-perf}), this means that we need 5s to test it
+against 4 templates with variations of the same logo. To worsen things up, do
+not forget that we have to recognize multiple logos and suppose that we want
+our system to \textit{know} 100 different logos. Doing the math results in \(5
+\times 100 = 500s \) of total processing time needed for one single round of
+30 images that come in a second.
+
+The 500s of total processing time need to be absorbed in just one second, if
+we want to keep up the pace with the Fetcher and process 30 images per second,
+therefore we need a total of 500 processing nodes or processes. If we suppose
+that we can run 4 different processes on a single physical machine, that gives
+us a total number of \(500 / 4 = 125\) machines.
+
+Using the above computation, but approaching it from the cost point of view
+results in a possibly unexpected result. A standard machine with 4-8
+processing cores and 8GB of RAM costs around \$0.25 per
+hour\footnote{\url{https://aws.amazon.com/ec2/pricing/}} so, counting the
+total of 125 machines that we need only for the Detectors results in \(\$0.25
+\times 125 = \$31.25\) per hour. With this in mind, let's do the math for an
+entire month: \(\$31.25 \times 24h \times 30days = \$22.500 \) per month.
+
+Neglecting the additional 2 or 3 machines to run the other \textit{light}
+components, \$22.500 is the cost that need to be split between the 100
+companies that supposedly have to pay in order to find their logo among the
+ones that we are searching for. \(\$22.500 / 100 logos = \$225 \) per
+brand. This means that each brand has to pay us at least \$225 a month and
+this is only the raw cost of keeping the pipeline up. Add other costs like
+engineer salaries or VAT that needs to be paid and the price can easily come
+over \$300 per month per brand.
+
+Although \$300 seems like a large number to pay each month, it may
+worth it when we talk about companies that have millions of clients and
+billions of dollars in revenue. For the moment, the budget of this project does not allow
+spinning up so many machines at once, therefore the temporary solution for not
+cluttering the Kafka logs was to shut down the Fetcher from time to time (see
+\labelindexref{Section}{sub-sec:fetch-module}) in
+order to allow the 4-5 Detectors that we had to recover from behind.
 
 \section{Precision and Recall}
+\label{sec:prec-recall}
 
 \subsection{Precision and Recall in Pattern Recognition}
-\todo{General stuff about precision and recall. Why are they a good benchmark}
+
+In pattern recognition and information retrieval with binary classification,
+precision (also called positive predictive value) is the fraction of retrieved
+instances that are relevant, while recall (also known as sensitivity) is the
+fraction of relevant instances that are retrieved. Therefore, they are a
+measure for relevance.
+
+For example, suppose that we have a computer program that has to recognize
+apples in an image and we provide it with a picture of 10 apples and 10
+oranges. If the program says that it recognized 9 apples, but only 7 out of
+those 9 were really apples, then we say that the program had a precision of
+\(7 / 9 = 77\%\) and a recall of \(7 / 10 = 70\%\). Precision can be seen as a
+measure of exactness or quality, whereas recall is a measure of completeness
+or quantity.
+
+\fig[scale=0.5]{src/img/Precisionrecall.png}{img:prec-rec}{Precision and
+recall}
+
+Precision and recall can be defined as:
+\[ Precision = \cfrac{tp}{tp + fp} \]
+\[ Recall = \cfrac{tp}{tp + fn} \]
+
+The abbreviations \texttt{tp}, \texttt{tf} and \texttt{fn} mean, respectively,
+true positives, false positives and false negatives. A better illustration of
+the definitions above can be found in \labelindexref{Figure}{img:prec-rec}.
 
 \subsection{Precision and Recall for our Algorithm}
-\todo{Do an evaluation based on a table with precision/recall for our
-algorithm}
+
+In the case of our logo recognition algorithm precision and recall are very
+easy to compute. In order to evaluate these two parameters in an automatic
+fashion, from time to time we had to make the input constant over time. For
+increased relevance of this type of evaluation, we did not change the images
+nor their numbers. For that, we took 80 images, 10 with the Twitter logo, 10
+containing the Honda logo and 60 random images that did not contain the
+Twitter nor the Honda logo, but there were 10 of them that contained other
+logos. We ran the algorithm on all those 80 images and the results are
+presented in \labelindexref{Table}{table:prec-rec}.
+
+\begin{center}
+\begin{table}[htb]
+\centering
+  \caption{Precision and recall for Twitter and Honda logos}
+  \begin{tabular}{|c|c|c|c|c|c|c|c|}
+    Logo & Img with logo & Img w/o logo & fp &
+    fn & tp & Precision & Recall \\
+    \hline
+    Honda & 10 & 70 & 0 & 3 & 7 & 100\% & 70\% \\
+    \hline
+    Twitter & 10 & 70 & 2 & 4 & 6 & 75\% & 60\% \\
+    \hline
+  \end{tabular}
+  \label{table:prec-rec}
+\end{table}
+\end{center}
 
 \section{Scalability and Portability}
-\todo{Talk about how easy to scale the system is. How portable it can be etc}
-\todo{Either create a new section, but talk about reliability. Do some example
-computation of how many machines can we upgrade at once without falling
-behind}
+
+Scalability is a very important factor in a distributed environment and
+is should not be treated as a second tier requirement or concert, although the
+first instinct is to focus on raw performance, big O complexities and running
+times for algorithms. A scalable system proves itself to be extremely useful
+once the data grows a lot in volume and, after some point, the only way to
+adapt it. Right now, if we had an algorithm that needs linear time and runs
+100 times faster than the current one we would require only 5 processing nodes
+(the amount we need right now). But imagine that some day, the incoming volume
+of data grows 100 times so, at that moment we will be back right where we find
+ourselves right now: make hundreds of machines to work together.
+
+Fortunately for our pipelined infrastructure, it was designed with these
+problems in mind, so we can scale it easily. Say we have 20\% more machines
+available, we can accommodate approximately 20\% more data, which we will need
+for sure with the rapid development of social networks.
+
+Another thing worth mentioning is the reliability of our system. One of the
+requirements (see \labelindexref{Section}{sec:reqs-tech}) was to build a
+reliable system that does not stop when we want to do a code update or when we
+want to add a new logo to the known logo database. To obtain this, we have to
+be careful about how we restart some of the Detectors and, to be more precise,
+how many of them we update at the same time. In
+\labelindexref{Section}{sub-sec:q-system} we talked about the fact that we
+chose to split Detectors into several Detector groups, each group containing 3
+Detectors. We chose the number 3 in order to have 2 additional replicas in the same
+groups so we can swallow 2 failures per group while the system can still recognize
+all types of known logos, even if it does that slower. But the main idea behind
+this distribution is when we do an update, hence we have to restart some
+Detectors.
+
+Suppose that we have to add a new logo to the known logo database. The first
+step in the updating process is to add the 4 templates associated with that
+logo into the \texttt{resources/} folder of the Detector component. The second
+step is to build the new Detector component and the third step is to choose a
+detector group that has the smallest number of known logos. The last step
+consists in taking down, one by one, the Detectors in that group and
+introducing the new Detector in their place, but the obvious problem that
+comes here is what happens with the partition assigned to these two Detectors
+while the old one is taken down and the new one has not started yet.
+Fortunately, Kafka caches data long enough until the new Detector comes up
+again. But let's assume that we have recently got some new machines that run
+faster than the old ones we have, so we can afford to run only two Detectors
+in some group. In this case, Kafka proves again to be extremely handy in the
+way that it can reassign the abandoned partition to another Detector in the
+group. This can be done after a configurable amount of time in which nobody
+has read from that partition.
+
+Last, but not least, a useful feature of this system is its portability,
+because it can basically run on any operating system that has a Java Virtual
+Machine\footnote{\url{https://docs.oracle.com/javase/specs/jvms/se8/jvms8.pdf}}
+with a version bigger that 1.7, because Scala compiles to Java bytecode. Although,
+we do not take too much credit for this achievement, as it is a generally true
+fact for any Scala or Java built project.

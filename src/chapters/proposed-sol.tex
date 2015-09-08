@@ -170,7 +170,70 @@ load balancing and ordering in the scope of the same partition.
 \subsection{Scala}
 \label{sub-sec:scala}
 
-\todo{General stuff about Scala. Advantages/disadvantages}
+Scala is a programming language created by a team conducted by prof. Martin
+Odersky at the \'Ecole Polytechnique F\'ed\'erale de Lausanne (EPFL), Switzerland.
+"Scala fuses object-oriented and functional programming in a statically typed
+programming language. It is aimed at the construction of components and
+component systems."\cite{scala}
+
+As prof. Martin Odersky states in his paper, Scala is a language designed for
+building components. And "true component systems have been an elusive goal
+of the software industry.
+Ideally, software should be assembled from libraries of pre-written
+components, just as hardware is assembled from pre-fabricated chips. In
+reality, large parts of software applications are written from scratch, so
+that software production is still more a craft than an industry."
+
+One of the main goals of Scala is to provide a \textit{scalable} language in
+the sense that the same concepts can describe small as well as large parts.
+Therefore, their main focus is on building upon composition and decomposition
+and concentrate on abstraction, rather than adding a large set of primitives
+that might be useful in the scope of one component at the bare code level, but
+not at other levels.
+
+Apart from these thoretical considerations, Scala has several characteristics
+that make it not only suitable for industry applications, but also fun to use.
+Among them, one can count:
+\begin{itemize}
+  \item seamless Java interoperability: Scala runs on the JVM, so Java and Scala
+  stacks can be freely mixed for totally seamless integration.
+  \item type inference: Scala has static types, but one does not have to
+  specify types for every variable they use, the Scala type system being
+  clever enough to deduct almost all of them.
+  \item concurrency and distribution: Scala uses data-parallel operations on
+  collections, actors for concurrency and distribution, or futures for
+  asynchronous programming.
+  \item traits: combines the flexibility of Java-style interfaces with the
+  power of classes. Think at principled multiple-inheritance.
+  \item pattern matching: match against class hierarchies, sequences and more.
+  Basically, one can use any type of variable in a \texttt{switch}-like
+  manner.
+  \item higher-order functions: functions are first-class objects in Scala.
+  You can compose them with guaranteed type safety and use them anywhere or pass
+  them to anything.
+\end{itemize}
+
+To better understand the constrast between Scala and Java (we are directly
+comparing these two languages because they are very related as they both run
+over the JVM), let's look at \labelindexref{Listing}{lst:prod-java}, which is a
+Java method that returns a copy of the list of products in an object, and
+compare it with \labelindexref{Listing}{lst:prod-scala} which is the
+equivalent Scala code.
+
+\lstset{language=Java,caption=Code written in Java,label=lst:prod-java}
+\begin{lstlisting}
+public List<Product> getProducts() {
+  List<Product> products = new ArrayList<Product>();
+  for (Order order : orders) {
+    products.addAll(order.getProducts());
+  }
+  return products;
+\end{lstlisting}
+
+\lstset{language=Scala,caption=Code written in Scala,label=lst:prod-scala}
+\begin{lstlisting}
+def products = orders.flatMap(o => o.products)
+\end{lstlisting}
 
 \section{System Architecture}
 \label{sec:sys-arch}
@@ -398,7 +461,6 @@ recognize logos out of nowhere, it rather compares them to a list of known
 logos. The design decision we took in this case, at least for now, was to
 bundle the list of images with the logo detection algorithm such that the
 process will have them in the \texttt{resources/} folder. The downside of this
-\fig[scale=0.5]{src/img/im-detector.pdf}{img:im-detector}{Detector Workflow}
 approach is, of course, the fact that every time a logo needs to be updated we
 have to rebuild the Detector and re-run it. The good part is that this process
 is very easy to do, we just have to add the new set of images to a folder
@@ -407,6 +469,8 @@ on one subset of detectors, namely 3 of them. We chose 3 as the magic number
 here in order to have triple replication. For more details about the queueing
 system and how the Detectors are organized, please follow
 \labelindexref{Section}{sub-sec:q-system}.
+
+\fig[scale=0.5]{src/img/im-detector.pdf}{img:im-detector}{Detector Workflow}
 
 \subsection{Annotated Data Storage Module}
 \label{sub-sec:ads-module}
@@ -496,8 +560,6 @@ this situation.
 
 Messages that we send through Kafka topics from one component to another are
 serialized as JSON documents. Until now, mainly because if the incipient stage
-\fig[scale=0.5]{src/img/detector-groups.pdf}{img:detector-groups}{Detector
-Groups}
 of the project, the messages are very small and have 2-3 keys, so we did not
 feel the need of using a compression library, like
 zLib\footnote{\url{http://www.zlib.net}}, therefore we send messages in clear
@@ -508,6 +570,9 @@ of messages. The 3 topics are: \texttt{toDownload}, \texttt{toDetect} and
 \texttt{StoreDetectedMessage}. The first two types of messages consist only in
 the imageID (image URL in our case), whereas the last one has an additional
 list of annotated data (found logos) which is, in most cases, empty.
+
+\fig[scale=0.5]{src/img/detector-groups.pdf}{img:detector-groups}{Detector
+Groups}
 
 \section{Logo Recognition Algorithm}
 \label{sec:logo-alg}
@@ -536,8 +601,6 @@ approach and this is: split the image into 4 equally sized squares, match
 each one of the squares independently and, finally, compare the \textit{best
 matched} positions and see if they are in the same order as they were in the
 template. \labelindexref{Figure}{img:4-squares} attempts to explain it better.
-\fig[scale=0.5]{src/img/4-squares.pdf}{img:4-squares}{4-way matching
-algorithm}
 We have the Twitter logo template, one random picture containing the logo,
 the 4-way split template and the matched template over the query image.
 
@@ -554,6 +617,8 @@ determined by running multiple experiments and doing the average was setting
 the maximum threshold distance allowed between two squares, both horizontally
 and vertically. To be more precise, there is a 20\% (of the square size)
 allowance between the upper row squares and lower row squares and 31\% between
+\fig[scale=0.5]{src/img/4-squares.pdf}{img:4-squares}{4-way matching
+algorithm}
 right and left. Any match that \textit{looks like} the template, but has
 larger distances between its squares, is considered a false match. However, we
 have also determined experimentally that, in some cases, 3 of the squares
@@ -565,7 +630,7 @@ to comply with the 20\% and 31\% boundaries.
 \labelindexref{Listing}{lst:4-way-alg} is the pseudocode of
 the 4-way split algorithm that runs inside a Detector process.
 
-\lstset{language=Python,caption=Deciding if a logo is or is not found,label=lst:4-way-alg}
+\lstset{language=Python,caption=4 way splitting template matching algorithm,label=lst:4-way-alg}
 \begin{lstlisting}
 def match(template_image, query_image):
   squares = ['red', 'yellow', 'blue', 'green'}
@@ -602,6 +667,36 @@ example, check if the squares respect the distance threshold with their
 neighbours lest they are actually mirrored. For example, the checks in
 \labelindexref{Listing}{lst:4-way-alg} do pass in the event when the red and
 yellow squares are on the lower row instead of the upper.
+
+A problem that is not very hard to see with this situation is what happens if
+the template has a difference size compared to the logo in the query image,
+say 10 times bigger. In this case, it is obvious that the result will be
+most likely false because even one square would still be 5 times larger that
+the whole logo. To solve this problem we do a multiple scale scan, with the
+template size decreased in exponential steps until we find the correct match
+or until the template becomes to small. To be more precise, we start with the
+template size approximately equal with the query image and do a full round
+trip (split the template, match each square separately etc). After that, we
+decrease the size of the template by 1.15 (determined experimentally) and redo
+the process. In practice, it turned out that we need between 12--17 round trips
+to do a complete check. This process is represented in
+\labelindexref{Listing}{lst:multiple-scale}.
+
+\lstset{language=Python,caption=Multiple scale template
+matching,label=lst:multiple-scale}
+\begin{lstlisting}
+def match_one(template, query):
+  if template.x + template.y < 50px:
+    return false
+
+  if template.x > query.x or template.y > query.y:
+    return false
+
+  if match(template, query):
+    return true
+  else:
+    return match_one(shrink(template, 15%), query)
+\end{lstlisting}
 
 One last shortcoming of this implementation is that it is very likely to
 produce wrong results in the event when the same logo can be found more than

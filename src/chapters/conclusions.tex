@@ -1,1 +1,22 @@
 \chapter{Conclusions}
+
+In this thesis we have presented a pipelined, distributed, social media image
+processing infrastructure with exemplification on logo recognition. The
+biggest objective we had and fulfilled was to build the system in an
+algorithm agnostic manner, such that it supports any type of image processing
+providing it has the implementation of an algorithm.
+
+In order to have a fully functional, complete, system we have also implemented
+a logo recognition algorithm that is based on pattern matching and better
+described in \labelindexref{Section}{sec:logo-alg}. We chose this
+approach for two main reasons. First, because it provides good results without
+using too much computing power and second, because the amount of time
+allocated for developing the algorithm was only a fraction of the total
+time needed to build the project and we needed an algorithm that can be well
+understood and implemented relatively fast.
+
+Even with these numerous constraints, mainly presented in
+\labelindexref{Section}{sec:reqs-tech}, the results we have obtained (see \labelindexref{Section}{sec:cost-and-resource} and
+\labelindexref{Section}{sec:prec-recall}) are more than satisfactory and
+we have a strong belief that the system can be well integrated in a real social media
+analytics platform, like the one that Hootsuite provides.

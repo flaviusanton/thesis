@@ -216,8 +216,23 @@ important than very high accuracy. If we remember the numbers stated in
 \labelindexref{Section}{sec:proj-motivation} from \labelindexref{Chapter}{chapter:intro},
 it is not a surprise that this type of algorithm was the main choice in the implementation.
 
-\todo{Decide whether we should talk about the Pyramid stuff or not}
-
 \subsection{Learning Approach}
-\todo{Present this type of technique. Implementations. Usages.
-Advantages/Disadvantages. Performance blah blah}
+This approach is totally different from the Template Matching one. If the main
+idea for the latter is to have a stateless algorithm that takes a template and
+a query image and tries to produce a binary response based on whether it finds
+the template or not, the Learning Approach requires a set of training
+templates upon it builds a model and constantly upgrades that model.
+Obviously, it is called the Learning Approach, because it mainly relies on
+Machine Learning techniques.
+
+Because the main goal of this thesis was not building the strongest logo
+recognition algorithm, but rather a reliable infrastructure that can support any
+type of image processing algorithm, and, therefore, it exceeds the scope of
+this project, we would not give a detailed description of this approach.
+However, we would like to mention that there is currently a lot of research in
+this domain and the \textit{state-of-the-art} is continuously pushed forward.
+Among the most important recently published, written papers in this field of study, we can count:
+Bundle Min-Hashing for Logo Recognition\cite{bundle}, Scalable Triangulation-based Logo
+Recognition\cite{triang}, Realtime Storefront Logo
+Recognition\cite{storefront} or Scalable Logo Recognition
+in Real-World Images\cite{real-world}.

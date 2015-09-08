@@ -1,16 +1,53 @@
 \chapter{Further Work}
 
+This chapter provides an overview of the current lacks of the system and
+possible future enhancements. Given the project nature, we have to take into
+consideration both the logo recognition algorithm as a separate entity that
+can be developed completely separately in an isolated environment and the
+underlying infrastructure that supports everything.
+
 \section{System Architecture Enhancements}
-\todo{What components can be improved. Fail recovery etc.}
-\todo{Improvement at the detector groups level. Make a general entity to avoid
-reprocessing}
-\todo{Replicate fetcher}
-\todo{Add Amazon S3}
+
+The first improvement that can be made would be to replicate the Fetcher
+Module presented in \labelindexref{Section}{sub-sec:fetch-module}. This would
+not introduce a great benefit in the present situation, but in the future
+could prevent losing data in the event of a hardware or software failure that
+would affect the Fetcher. It is important to understand that currently the
+Fetcher is a single point of failure for this system and, if it fails, all
+other components behind it will starve after a period of time. The obvious
+solution to this problem is to have at least another replica that can come in and
+take over the job of the failed Fetcher.
+
+The second \textit{todo} on the list of improvements is, of course, supporting
+more social networks, because, right now, Twitter is the only source of data.
+Adding Facebook or Instagram would definitely increase the relevance of the
+statistics we produce, but would also require a considerable amount of
+additional processing nodes.
+
+In terms of storage, a \textit{nice-to-have} feature is to move everything we
+store on disk right now, especially downloaded images, on a cloud service that
+is reliable and integrated in the cloud infrastructure that we are using. One
+example of this technology is Amazon
+S3\footnote{\url{https://aws.amazon.com/s3/}}.
+
+Last, but not least, the Annotated Data Storage Module (see
+\labelindexref{Section}{sub-sec:ads-module}) is also a single point of failure
+in the system that needs to be replicated in the future. Fortunately, there is
+very little traffic that reaches this point, so we can safely rely on the
+Kafka log caching for now.
 
 \section{Better Logo Recognition Algorithm}
-\todo{Some general ideas about what could have been done better regarding the
-algorithm}
 
-\section{Other Possible Social Media Image Processing}
-\todo{State some ideas of how one can use this system for other types of image
-processing, not only looking for logos}
+A large amount of the time available was spent on building the pipelined
+system that is basically the supporting infrastructure for image processing
+algorithms that run inside the Detectors. Therefore, the accent has not been
+on building the best possible logo recognition algorithm, but a
+\textit{good enough} one that can prove the functionality of the underlying
+system.
+
+With this in mind, a decent improvement for the present implementation would
+be a faster algorithm. It is hard to imagine a ground breaking improvement
+while still using the template matching approach, but others could make a
+difference. At the amount of machines that we currently need, even a 10\%
+faster algorithm will result in about \$2000 saved per month, if we are
+running at full Fetcher capacity.
