@@ -182,15 +182,15 @@ presented in \labelindexref{Table}{table:prec-rec}.
 \section{Scalability and Portability}
 
 Scalability is a very important factor in a distributed environment and
-is should not be treated as a second tier requirement or concert, although the
+is should not be treated as a second tier requirement or concern, although the
 first instinct is to focus on raw performance, big O complexities and running
 times for algorithms. A scalable system proves itself to be extremely useful
 once the data grows a lot in volume and, after some point, the only way to
 adapt it. Right now, if we had an algorithm that needs linear time and runs
-100 times faster than the current one we would require only 5 processing nodes
-(the amount we need right now). But imagine that some day, the incoming volume
-of data grows 100 times so, at that moment we will be back right where we find
-ourselves right now: make hundreds of machines to work together.
+100 times faster than the current one we would have required only 5 processing nodes
+(the amount we need right now divided by 100). But imagine that some day, the incoming volume
+of data grows 100 times as well, so, at that moment we will be back right where we find
+ourselves now: make hundreds of machines to work together.
 
 Fortunately for our pipelined infrastructure, it was designed with these
 problems in mind, so we can scale it easily. Say we have 20\% more machines
