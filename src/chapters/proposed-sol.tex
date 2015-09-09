@@ -1,7 +1,7 @@
 \chapter{Proposed Solution}
 \label{chapter:proposed-sol}
 
-In this chapter we will see a detailed description of the system we have built
+In this chapter we present a detailed description of the system we have built
 in the scope of this thesis. In \labelindexref{Section}{sec:reqs-tech} we
 present what were the requirements and constraints of this project together
 with what technologies we used and why we chose them. In the next part of this
@@ -11,7 +11,7 @@ pipeline and present how it works. Finally, the third part,
 the template matching algorithm variation that we used for the logo
 recognition component.
 
-We will shortly see in the next section that one of the biggest requirements
+We see in the next section that one of the biggest requirements
 (and achievements for that matter) of this thesis was to build a system that
 is algorithm agnostic and can do any type of computation on images fetched
 from social media streams. In order for this to happen, it was necessary to
@@ -37,8 +37,8 @@ common sense is that the system has to scale very easily. Like we saw in
 \labelindexref{Section}{sec:proj-motivation}, the number of images that this
 system has to face is quite big, even with the computation power we have
 available nowadays. The most intuitive way to imagine a scalable system is if
-we add an arbitrary number of machines, let's say \(M_{new}\), than the task has to
-completed \(1 + \frac{M_{new}}{M_{old}}\) times faster, where \(M_{old}\) is the old number
+we add an arbitrary number of machines, let's say \(M_{new}\), than the task
+has to be completed \(1 + \frac{M_{new}}{M_{old}}\) times faster, where \(M_{old}\) is the old number
 of machines available. In practice, mostly due to Amdahl's
 Law\footnote{\url{http://home.wlu.edu/~whaleyt/classes/parallel/topics/amdahl.html}},
 but also because of other factors, like network latency, hardware or software
@@ -47,10 +47,10 @@ speed gain is linear with \(1 + \frac{M_{new}}{M_{old}}\), we can declare that t
 system is scalable. Fortunately for us, the task we have to perform is very
 easy to distribute across multiple machines. Suppose that we have \(M\)
 machines and each of them is running an instance of the logo recognition
-algorithm, then if we have \(2 \times M\) images to process we can easily
+algorithm, then, if we have \(2 \times M\) images to process, we can easily
 distribute \(2\) images per machine and then collect the results in the end.
 Because images that come from the social media streaming endpoints are rather
-independent and processing them represent perfectly independent tasks, we do
+independent and processing them represents perfectly independent tasks, we do
 not even need to collect the results, but this is a discussion we will have in
 \labelindexref{Section}{sec:sys-arch}.
 
@@ -58,7 +58,7 @@ One of the main characteristics of the system is that it has to allow
 introducing new \textit{known} logos or removing old ones in an easy manner.
 It is allowed to have a small delay of a few minutes before the system can
 recognize the new logo when we want to insert it
-int the \textit{known logos database}, but not hours or, even worse,
+in the \textit{known logos database}, but not hours or, even worse,
 days. By easy we mean here fast and reliable rather than easy from the end user point of
 view. The actual process is fine to involve digging into the filesystem,
 updating some directory, restarting some components, but this process has to
@@ -87,7 +87,7 @@ delay in updating the dashboard, but the web application should poll the
 database at least once a minute.
 
 Because our focus is rather on the infrastructure and reliability rather than
-the algorithm approach itself which can be changed at any future time, but
+the algorithm approach itself, which can be changed at any future time, but
 also because we cannot miss important data and have false statistics, the system
 is not allowed to lose messages. In the scope of this thesis, by
 \textit{message} we understand the output of one component and the input of
@@ -155,7 +155,7 @@ interesting here is that, by this approach, one can choose from two models of
 usage: message queue and publish-subscribe model. What Kafka does is that all
 the messages from one partition go to all consumer groups (publish-subscribe
 model), but only one consumer from a consumer group can read a given message
-(queueing model). This proved over time to be extremely useful and it is,
+(queueing model). This proved, over time, to be extremely useful and it is,
 indeed, in our case also. \labelindexref{Figure}{img:kafka-arch} offers a
 visual interpretation of the two models that Kafka provides. It is a two
 server Kafka cluster hosting 4 partitions with 2 consumer groups. Consumer
@@ -165,7 +165,8 @@ interesting part is that each partition is consumed by both consumer groups
 message (uniqueness). The good part here is that Kafka is able to provide both
 load balancing and ordering in the scope of the same partition.
 
-\fig[scale=0.7]{src/img/kafka-arch.png}{img:kafka-arch}{Kafka Cluster}
+\fig[scale=0.7]{src/img/kafka-arch.png}{img:kafka-arch}{Kafka
+Cluster\cite{fig31}}
 
 \subsection{Scala}
 \label{sub-sec:scala}
@@ -387,7 +388,7 @@ gets past the Fetcher and gets written in a corresponding Kafka queue on which
 more Image Retriever processes await.
 
 It should be clear to the reader, by now, that the Fetcher and Image Retriever
-(see \labelindexref{Figure}{fig:hl-arch}) are two separate processes, but they
+(see \labelindexref{Figure}{img:hl-arch}) are two separate processes, but they
 do not need to run on different machines. Because the processing power needed here is
 very low, but also because these two components are very bound to each other
 in terms of logic, we are considering these two types of processes as
@@ -400,13 +401,13 @@ approximately 50--200KB and we have about 30 images per second to process that
 gives us \(30 \times 200KB = 6MB\) of data to download per second in the worst
 case. If we also take peaks due to busy hours into consideration, the amount
 of data to download in one second can exceed 10MB so we do not want all this
-incoming traffic on one single machine. This is the main reason we should at
+incoming traffic on one single machine. This is the main reason we should have at
 least 2 or 3 Image Retrievers if our data connection is good.
 
 After the download, an Image Retriever is responsible for two more tasks.
 First, it has to call the Image Store component
 (\labelindexref{Section}{sub-sec:im-store}) and send the image to it.
-Secondly it has to produce a message containing the image ID (image URL) and
+Secondly, it has to produce a message containing the image ID (image URL) and
 write it to the Kafka queue on which the Detectors await.
 
 \subsection{Image Store}
@@ -417,21 +418,24 @@ the storage engine used underneath. It represents a one common entity that
 knows where images are stored and can do two types of operations:
 \texttt{putImage(imageID, imageBytes)} and \texttt{getImage(imageID)}.
 
-As \labelindexref{Figure}{img:im-store} shows, in the present future we simply
-need to be wrote and read only once in 99\% of the cases. In the future, if we
+As \labelindexref{Figure}{img:im-store} shows, in the current version of the
+implementation, the Image Store component uses the disk, because most of the
+images we deal with
+need to be written and read only once in 99\% of the cases. In the future, if we
 decide to move the whole system in the Amazon Cloud, the underneath storage
 can be Amazon S3\footnote{\url{https://aws.amazon.com/s3/}}. For now, it is
-use the disk in order to store images. This is mainly because they currently
-good to have the storage hid behind a good abstraction layer such that other
-\fig[scale=0.5]{src/img/im-store.pdf}{img:im-store}{Image Store Component}
-components do not know who they are talking to.
+sufficient to use the disk in order to store images and more important to
+have the storage hidden behind a good abstraction layer such that other
+components do not know who they are talking to, besides the Image Store
+component.
 
+\fig[scale=0.5]{src/img/im-store.pdf}{img:im-store}{Image Store Component}
 \subsection{Detector Module}
 \label{sub-sec:detector}
 
 This module is the most computationally intensive one and requires more than
 90\% of the whole processing power available. In our logo recognition
-situation, these processes are the bottleneck for the entire system so if we
+situation, these processes are the bottleneck for the entire system, so if we
 were to look for performance optimizations this should have been the first place to
 check. However, we designed the system such that it is entirely algorithmic
 agnostic, so in a situation where a different, less intensive, algorithm is
@@ -448,7 +452,7 @@ algorithm. One such interface takes the image as parameter and outputs a list
 of found features of the image, in our case logos. This list of found features
 is then compacted in a message and quickly wrote to the next Kafka queue on
 which the Annotated Data Storage Module
-(\labelindexref{Section}{sub-sec:ads-module} awaits. This is workflow is
+(\labelindexref{Section}{sub-sec:ads-module}) awaits. This workflow is
 better described in \labelindexref{Figure}{img:im-detector} below. As the figure
 shows, the detectors do not rely on a specific algorithm and can
 run any type of processing, providing they are fed up with the implementation.
@@ -487,8 +491,8 @@ to restart the component. The good part is that we are again backed up by the
 messaging system that caches the messages until the process goes back up, so
 we do not lose precious analyzed and found positive data.
 
-Mostly because our messages are basically JSON messages but also because of
-reliability we chose MongoDB\footnote{\url{https://www.mongodb.org}} as the
+Mostly because our messages are basically JSON messages, but also because of
+reliability, we chose MongoDB\footnote{\url{https://www.mongodb.org}} as the
 database for our system. The storage module is also agnostic about the type of
 computation we did in the previous layers, so the data that gets stored is
 nothing more than the image URL and the list of features found in the image.
@@ -508,7 +512,7 @@ We call this features \textit{annotations}, as the
 
 The database is also polled once every 10 seconds by the simple web dashboard
 in order to check for new logo occurrences and compute new statistics. Because
-of the rare frequency of the even when we identify a known logo, there is very
+of the rare frequency of the event when we identify a known logo, there is very
 little load on the database, so we only need one small server to keep it
 running. In terms of replicas, we rely on the internal MongoDB replications
 and failure recovery mechanisms.
@@ -520,11 +524,11 @@ As stated before, we rely on the Apache Kafka when it comes to passing
 messages around and exchange data between different components. Each component
 is connected to the next one by a Kafka channel (topic) through which only the
 same type of messages should be sent. Kafka does not have a mechanism of data
-introspection such that we can discard potentially malformed messages came from
+introspection, such that we can discard potentially malformed messages came from
 defective processes, thus we are obliged to do sanity checks every time we
 read a message.
 
-The logo Detectors in our implementation are very slow
+The logo Detectors in our implementation are very slow,
 mainly because they have to check an image against a list of logos, not just
 one single known logo. So, if we were to keep adding logos to the known
 database, we would have ended up in the situation where a single logo Detector
@@ -553,13 +557,13 @@ it for one group of Detectors (see \labelindexref{Section}{sub-sec:detector}).
 One problem that is avoided by Kafka's design is the race between Detectors in
 the same Detector group. If Kafka did not offer a guarantee that messages
 wrote in the same partition are ordered and read by exactly one consumer, we
-would have need to solve the race condition by manually implementing a locking
+would have needed to solve the race condition by manually implementing a locking
 mechanism between Detectors from the same group which would have complicated
 the whole system. So, once again, Kafka proved itself a suitable choice in
 this situation.
 
 Messages that we send through Kafka topics from one component to another are
-serialized as JSON documents. Until now, mainly because if the incipient stage
+serialized as JSON documents. Until now, mainly because of the incipient stage
 of the project, the messages are very small and have 2-3 keys, so we did not
 feel the need of using a compression library, like
 zLib\footnote{\url{http://www.zlib.net}}, therefore we send messages in clear
@@ -580,7 +584,7 @@ Groups}
 As stated before, the general idea of this project was to create a processing
 pipeline that allows any type of image computations done on images fetched
 from social networks streaming endpoints. In order to have a fully functional
-complete implementation we also had to choose one algorithm and apply it on
+complete implementation, we also had to choose one algorithm and apply it on
 the input data. Therefore, we chose a Logo Recognition algorithm that attempts
 to find logos in a random image based on a database of known logos. Because
 the main requirement was not the algorithm, but because we needed a fairly
@@ -596,7 +600,7 @@ logo (see \labelindexref{Figure}{img:8-logos}). The Twitter logo is basically
 a normal, weird shaped light blue spot. With this in mind, if we try to match
 it against a completely blue image (same blue color) it would perfectly match
 in every location. A na{\"i}ve algorithm would even find thousands of matches
-in the given image. To solve this problem we had to came up with an original
+in the given image. To solve this problem we had to come up with an original
 approach and this is: split the image into 4 equally sized squares, match
 each one of the squares independently and, finally, compare the \textit{best
 matched} positions and see if they are in the same order as they were in the
@@ -608,17 +612,17 @@ As the figure shows, the 4 matched squares are approximately in the same
 relative position as in the original template, thus, according to this
 algorithm standards, is a strong belief that the logo have been identified in
 that position. One thing to notice, though, is that the matches are not in
+\fig[scale=0.5]{src/img/4-squares.pdf}{img:4-squares}{4-way matching
+algorithm}
 exactly the same relative position, and this is mainly caused by the matching
 function used (see \labelindexref{Section}{sub-sec:template-matching}) which
 does an approximation. Throughout our implementation we chose the
 \texttt{CV_TM_CCORR} metric, because it proved itself to be the most accurate
-in the experiments we have run. Another important thing that we have also
-determined by running multiple experiments and doing the average was setting
+in the experiments we have run. Another important thing, that we have also
+determined by running multiple experiments and doing the average, was setting
 the maximum threshold distance allowed between two squares, both horizontally
 and vertically. To be more precise, there is a 20\% (of the square size)
 allowance between the upper row squares and lower row squares and 31\% between
-\fig[scale=0.5]{src/img/4-squares.pdf}{img:4-squares}{4-way matching
-algorithm}
 right and left. Any match that \textit{looks like} the template, but has
 larger distances between its squares, is considered a false match. However, we
 have also determined experimentally that, in some cases, 3 of the squares
@@ -633,7 +637,7 @@ the 4-way split algorithm that runs inside a Detector process.
 \lstset{language=Python,caption=4 way splitting template matching algorithm,label=lst:4-way-alg}
 \begin{lstlisting}
 def match(template_image, query_image):
-  squares = ['red', 'yellow', 'blue', 'green'}
+  squares = ['red', 'yellow', 'blue', 'green']
   for square in squares:
     template_pos[square] = 4way_split(square, template_image)
 

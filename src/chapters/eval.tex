@@ -39,9 +39,9 @@ bad at all. The first argument that comes in the defense of this practice is
 that it is, indeed, producing better results. Either if we drop the 4 way
 split or the multiple scale scan, the results we get are far worse. It is true
 that in a normal situation you would prefer an algorithm that runs 4 times
-faster, but has 10 to 20\% worse results, but in our case if we drop one of
-the steps the recall we get goes as down as 25\% of the total input images,
-which is a decrease in performance of over 200\% (we currently have a recall
+faster, but has 10 to 20\% worse results, but in our case, if we drop one of
+the steps, the recall we get goes as down as 25\% of the total input images,
+which is a decrease in performance of over 100\% (we currently have a recall
 of 55--75\%). The second argument in the favour of our algorithm is that both the
 4 way split and the multiple scale scan are heavily and easily parallelizable,
 which is a very good property for an algorithm, especially nowadays when
@@ -65,7 +65,7 @@ The 1.25 seconds per query we have seems very decent at a first glance, but
 let's explore what this actually means in terms of cost and resource
 consumption, because a small \textit{0.1s} improvement at the algorithm level, means a
 \(3s\) gain for the whole system at the speed of 30 images per second, so this
-actually means that we save up computation time as for \textbf{90 images} if
+actually means that we save up computation time as for \textbf{90 images}, if
 we assume that the system keeps up the pace.
 
 \section{Cost and Resource Consumption}
@@ -76,7 +76,7 @@ algorithm really has and what are the costs of running the system at full
 capacity we do a cost evaluation in this section.
 
 First, let us assume that we want to have enough power to process 30 images
-per second. In the event of busy hours and peaks of more than 30 images we can
+per second. In the event of busy hours and peaks of more than 30 images, we can
 rely on the queueing system that powers the whole infrastructure, Kafka, that
 will cache data until we can process it. We choose 30 images here because it
 is the actual average number of images streamed by Twitter's Streaming API
@@ -112,7 +112,7 @@ this is only the raw cost of keeping the pipeline up. Add other costs like
 engineer salaries or VAT that needs to be paid and the price can easily come
 over \$300 per month per brand.
 
-Although \$300 seems like a large number to pay each month, it may
+Although \$300 seems like a significant amount to pay each month, it may
 worth it when we talk about companies that have millions of clients and
 billions of dollars in revenue. For the moment, the budget of this project does not allow
 spinning up so many machines at once, therefore the temporary solution for not
@@ -140,7 +140,7 @@ measure of exactness or quality, whereas recall is a measure of completeness
 or quantity.
 
 \fig[scale=0.5]{src/img/Precisionrecall.png}{img:prec-rec}{Precision and
-recall}
+recall\cite{fig41}}
 
 Precision and recall can be defined as:
 \[ Precision = \cfrac{tp}{tp + fp} \]
@@ -166,14 +166,15 @@ presented in \labelindexref{Table}{table:prec-rec}.
 \begin{table}[htb]
 \centering
   \caption{Precision and recall for Twitter and Honda logos}
-  \begin{tabular}{|c|c|c|c|c|c|c|c|}
+  \begin{tabular}{cccccccc}
+    \toprule
     Logo & Img with logo & Img w/o logo & fp &
     fn & tp & Precision & Recall \\
-    \hline
+    \midrule
     Honda & 10 & 70 & 0 & 3 & 7 & 100\% & 70\% \\
-    \hline
+    \midrule
     Twitter & 10 & 70 & 2 & 4 & 6 & 75\% & 60\% \\
-    \hline
+    \bottomrule
   \end{tabular}
   \label{table:prec-rec}
 \end{table}
@@ -182,12 +183,12 @@ presented in \labelindexref{Table}{table:prec-rec}.
 \section{Scalability and Portability}
 
 Scalability is a very important factor in a distributed environment and
-is should not be treated as a second tier requirement or concern, although the
+it should not be treated as a second tier requirement or concern, although, the
 first instinct is to focus on raw performance, big O complexities and running
-times for algorithms. A scalable system proves itself to be extremely useful
+times for algorithms. A scalable system proves itself to be extremely useful,
 once the data grows a lot in volume and, after some point, the only way to
 adapt it. Right now, if we had an algorithm that needs linear time and runs
-100 times faster than the current one we would have required only 5 processing nodes
+100 times faster than the current one, we would have required only 5 processing nodes
 (the amount we need right now divided by 100). But imagine that some day, the incoming volume
 of data grows 100 times as well, so, at that moment we will be back right where we find
 ourselves now: make hundreds of machines to work together.

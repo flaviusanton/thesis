@@ -69,7 +69,7 @@ let's see what is different in recognizing a logo compared to recognizing an
 object, because if there were no differences we could simply use any type of
 object recognition approach and apply it in our case. 
 
-The first one that comes to mid, if we look at
+The first one that comes to mind, if we look at
 \labelindexref{Figure}{img:8-logos}, may probably be the \textit{color}. One of the most
 definitive characteristics of a logo is that its color changes very rarely,
 or, if it actually changes, we can almost consider it to be another logo. There are
@@ -148,17 +148,17 @@ resolutions, so both images can be safely resized to much smaller sizes as
 long as we do not lose too many details, especially in the template image.
 
 \fig[scale=1]{src/img/template-matching.jpg}{img:sliding-template}{Sliding
-Template}
+Template\cite{fig22}}
 
 In order for the template matching approach to work, there is a need for a
 good matching function. In a real implementation, like the one in the OpenCV
 library, a third image, sometimes called a \textit{result image}, is obtained
-after the sliding step and on that image we look for the \textit{best} match.
+after the sliding step and, on that image, we look for the \textit{best} match.
 When we slide the template on the image, and by sliding we understand moving
 the box one pixel at a time from left to right and up to down, we compute a
 value for the same pixel in the result image based on a metric. So, for each
-pair of pixels \((x, y)\) where we we overlapped the template image \(T\) over
-the query image \(I\) we set the corresponding \((x, y)\) pixels in the result
+pair of pixels \((x, y)\), where we overlapped the template image \(T\) over
+the query image \(I\), we set the corresponding \((x, y)\) pixels in the result
 image \(R\) according to the match metric.
 
 The OpenCV library exposes several metrics to be used together with the
@@ -189,21 +189,21 @@ have to do is look for the smallest value in the result image in order to
 find the best match.
 
 \fig[scale=1]{src/img/template-result.jpg}{img:result-template}{Result matrix
-\texttt{R} obtained with a metric of \texttt{CV_TM_CCORR_NORMED}.}
+\texttt{R} obtained with a metric of \texttt{CV_TM_CCORR_NORMED}\cite{fig22}}
 
 In \labelindexref{Figure}{img:result-template} we illustrate the result matrix
 obtained after the sliding procedure shown in
 \labelindexref{Figure}{img:sliding-template} using the
 \texttt{CV_TM_CCORR_NORMED} metric. Contrary to the squared difference
-metrics, the cross correlation methods yield the best result when the result
-values is at its maximum, in our case the small white spot inside the red
+metrics, the cross correlation methods yield the best match when the result
+value is at its maximum, in our case the small white spot inside the red
 circle. Once we have determined the location of the best match, all that
-remains to be done is determine the contour of the template in the original
+remains to be done is to determine the contour of the template in the original
 image. This can be easily achieved knowing the size of the template and the
 fact that the white spot represents the upper left corner.
 
 It is true that we presented here only the happy case when the template size
-matches exactly the size of the object looked for in the query image which is
+matches exactly the size of the object looked for in the query image, which is
 not very often true in a real environment where we know the size of the
 template, but we know nothing about the bigger image. However, there is some
 work done in this domain \cite{fast-ccorr} \cite{phase-angle} such that the
