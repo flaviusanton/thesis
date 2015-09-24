@@ -44,11 +44,14 @@
 \hypersetup{%
 	colorlinks=true,
 	linkcolor=blue,
+	%linkcolor=black,
 	anchorcolor=black,
 	citecolor=black,
 	filecolor=blue,
+	%filecolor=black,
 	menucolor=black,
 	urlcolor=blue,
+	%urlcolor=black,
 	bookmarks=true,
 	bookmarksnumbered=true
 }
