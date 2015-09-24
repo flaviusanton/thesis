@@ -1,5 +1,5 @@
-Autor: Mircea Bardac
-E-mail: mircea@bardac.net
+Author: Flavius Anton (f.v.anton@gmail.com)
+Original author: Mircea Bardac (mircea@bardac.net)
 
 Repository: http://elf.cs.pub.ro/gitosis/?p=template-licenta.git;a=summary
 
@@ -109,4 +109,3 @@ label=lst:makefile-spec}
   \label{table:reports}
 \end{table}
 \end{center}
-
